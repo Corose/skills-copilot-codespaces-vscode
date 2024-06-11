@@ -1,42 +1,37 @@
 //Create Web Server
 var http = require('http');
-var url = require('url');
 var fs = require('fs');
-var qs = require('querystring');
+var url = require('url');
+var path = require('path');
+var mime = require('mime');
+var comments = [];
 
-http.createServer(function (req, res) {
-    var q = url.parse(req.url, true);
-    var filename = "." + q.pathname;
-    if (filename == "./") {
-        filename = "./index.html";
+var server = http.createServer(function(req, res){
+    var urlObj = url.parse(req.url, true);
+    var pathname = urlObj.pathname;
+    if(pathname == '/'){
+        fs.readFile('./index.html', function(err, data){
+            if(err){
+                console.log(err);
+            }else{
+                res.end(data);
+            }
+        });
+    }else if(pathname == '/post'){
+        var comment = urlObj.query;
+        comment.dateTime = new Date();
+        comments.push(comment);
+        res.statusCode = 302;
+        res.setHeader('Location', '/');
+        res.end();
+    }else if(pathname == '/comment'){
+        var str = JSON.stringify(comments);
+        res.end(str);
+    }else{
+        static(pathname, res);
     }
-    fs.readFile(filename, function (err, data) {
-        if (err) {
-            res.writeHead(404, { 'Content-Type': 'text/html' });
-            return res.end("404 Not Found");
-        }
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        res.write(data);
-        return res.end();
-    });
-}).listen(8080);
 
-//Create Comments
-http.createServer(function (req, res) {
-    if (req.method === 'POST') {
-        var body = '';
-        req.on('data', function (data) {
-            body += data;
-        });
-        req.on('end', function () {
-            var post = qs.parse(body);
-            res.writeHead(200, { 'Content-Type': 'text/html' });
-            res.write('Name: ' + post.name + '<br>');
-            res.write('Comment: ' + post.comment);
-            res.end();
-        });
-    } else {
-        res.writeHead(405, { 'Content-Type': 'text/html' });
-        return res.end('<h1>Method not supported</h1>');
-    }
-}).listen(8081);
+});
+
+server.listen(8080, function(){
+    console.log('Server is running at http://localhost:8080');});
