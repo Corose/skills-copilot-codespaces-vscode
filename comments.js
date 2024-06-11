@@ -1,62 +1,81 @@
-//Create Web Server
+// Create web server
+// Create new comments
+// Read all comments
+// Read one comment
+// Update one comment
+// Delete one comment
+// Export router
+
+// Load express
 const express = require('express');
-const app = express();
-const fs = require('fs');
-const bodyParser = require('body-parser');
-app.use(bodyParser.json());
+const router = express.Router();
 
-// Create a new comment
-app.post('/comments', (req, res) => {
-    const comments = JSON.parse(fs.readFileSync('comments.json'));
-    const newComment = req.body;
-    comments.push(newComment);
-    fs.writeFileSync('comments.json', JSON.stringify(comments));
-    res.send('Comment added');
+// Load data
+const data = require('../data');
+const commentsData = data.comments;
+
+// Load error
+const errors = require('../errors');
+
+// Load middleware
+const middleware = require('../middleware');
+
+// GET /comments
+router.get('/', middleware.auth, async (req, res) => {
+    try {
+        const commentsList = await commentsData.getAllComments();
+        res.status(200).json(commentsList);
+    } catch (e) {
+        res.status(500).json({ error: errors.internalError });
+    }
 });
 
-// Get all comments
-app.get('/comments', (req, res) => {
-    const comments = JSON.parse(fs.readFileSync('comments.json'));
-    res.send(comments);
+// GET /comments/:id
+router.get('/:id', middleware.auth, async (req, res) => {
+    try {
+        const comment = await commentsData.getCommentById(req.params.id);
+        res.status(200).json(comment);
+    } catch (e) {
+        res.status(404).json({ error: errors.commentNotFound });
+    }
 });
 
-// Get a comment by id
-app.get('/comments/:id', (req, res) => {
-    const comments = JSON.parse(fs.readFileSync('comments.json'));
-    const id = req.params.id;
-    const comment = comments.find(comment => comment.id === id);
-    res.send(comment);
+// POST /comments
+router.post('/', middleware.auth, async (req, res) => {
+    const commentInfo = req.body;
+    if (!commentInfo) {
+        res.status(400).json({ error: errors.commentNotProvided });
+        return;
+    }
+    if (!commentInfo.poster) {
+        res.status(400).json({ error: errors.posterNotProvided });
+        return;
+    }
+    if (!commentInfo.comment) {
+        res.status(400).json({ error: errors.commentNotProvided });
+        return;
+    }
+    try {
+        const newComment = await commentsData.addComment(
+            commentInfo.poster,
+            commentInfo.comment
+        );
+        res.status(200).json(newComment);
+    } catch (e) {
+        res.status(500).json({ error: errors.internalError });
+    }
 });
 
-// Update a comment by id
-app.put('/comments/:id', (req, res) => {
-    const comments = JSON.parse(fs.readFileSync('comments.json'));
-    const id = req.params.id;
-    const updatedComment = req.body;
-    const index = comments.findIndex(comment => comment.id === id);
-    comments[index] = updatedComment;
-    fs.writeFileSync('comments.json', JSON.stringify(comments));
-    res.send('Comment updated');
-});
-
-// Delete a comment by id
-app.delete('/comments/:id', (req, res) => {
-    const comments = JSON.parse(fs.readFileSync('comments.json'));
-    const id = req.params.id;
-    const index = comments.findIndex(comment => comment.id === id);
-    comments.splice(index, 1);
-    fs.writeFileSync('comments.json', JSON.stringify(comments));
-    res.send('Comment deleted');
-});
-
-app.listen(3000, () => {
-    console.log('Server is listening on port 3000');
-});
-//Create a new file named comments.json
-fs.writeFileSync('comments.json', '[]');
-//Run the server
-//Open Postman and send a POST request to http://localhost:3000/comments with a JSON body
-//Open Postman and send a GET request to http://localhost:3000/comments
-//Open Postman and send a GET request to http://localhost:3000/comments/1
-//Open Postman and send a PUT request to http://localhost:3000/comments/1 with a JSON body
-//Open Postman and
+// PUT /comments/:id
+router.put('/:id', middleware.auth, async (req, res) => {
+    const updatedData = req.body;
+    if (!updatedData) {
+        res.status(400).json({ error: errors.commentNotProvided });
+        return;
+    }
+    try {
+        await commentsData.getCommentById(req.params.id);
+    } catch (e) {
+        res.status(404).json({ error: errors.commentNotFound });
+        return;
+    }});
